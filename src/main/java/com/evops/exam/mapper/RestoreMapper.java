@@ -26,6 +26,14 @@ import com.evops.grade.entity.GradeRuleVersion;
 import com.evops.grade.entity.ScoreChangeLog;
 import com.evops.grade.entity.ScoreNotification;
 import com.evops.grade.entity.ScoreReview;
+import com.evops.secrecy.entity.SecrecyAccess;
+import com.evops.secrecy.entity.SecrecyAccessSupplement;
+import com.evops.secrecy.entity.SecrecyAccessVersion;
+import com.evops.secrecy.entity.SecrecyAlert;
+import com.evops.secrecy.entity.SecrecyBox;
+import com.evops.secrecy.entity.SecrecyBoxMove;
+import com.evops.secrecy.entity.SecrecyPerson;
+import com.evops.secrecy.entity.SecrecyTimeRule;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
@@ -462,4 +470,133 @@ public interface RestoreMapper {
 
     @Update("ALTER TABLE t_settlement_adjustment ALTER COLUMN id RESTART WITH ${value}")
     void restartSettlementAdjustment(@Param("value") long value);
+
+    // ============ secrecy-1：保密室双人复核链 ============
+
+    @Delete("DELETE FROM t_secrecy_alert")
+    void clearSecrecyAlerts();
+
+    @Delete("DELETE FROM t_secrecy_access_supplement")
+    void clearSecrecySupplements();
+
+    @Delete("DELETE FROM t_secrecy_access_version")
+    void clearSecrecyAccessVersions();
+
+    @Delete("DELETE FROM t_secrecy_box_move")
+    void clearSecrecyBoxMoves();
+
+    @Delete("DELETE FROM t_secrecy_access")
+    void clearSecrecyAccesses();
+
+    @Delete("DELETE FROM t_secrecy_box")
+    void clearSecrecyBoxes();
+
+    @Delete("DELETE FROM t_secrecy_time_rule")
+    void clearSecrecyTimeRules();
+
+    @Delete("DELETE FROM t_secrecy_person")
+    void clearSecrecyPersons();
+
+    @Insert("INSERT INTO t_secrecy_person (id, code, name, card_no, role_code, phone, status, remark, "
+            + "create_by, create_time, update_by, update_time) VALUES "
+            + "(#{id},#{code},#{name},#{cardNo},#{roleCode},#{phone},#{status},#{remark},"
+            + "#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertSecrecyPerson(SecrecyPerson p);
+
+    @Insert("INSERT INTO t_secrecy_access (id, access_no, person_id, person_code, person_name, card_no, "
+            + "direction, happened_at, second_person_id, second_person_code, second_person_name, "
+            + "current_version, status, source, off_hours, box_count, remark, operator, "
+            + "create_by, create_time, update_by, update_time) VALUES "
+            + "(#{id},#{accessNo},#{personId},#{personCode},#{personName},#{cardNo},#{direction},"
+            + "#{happenedAt},#{secondPersonId},#{secondPersonCode},#{secondPersonName},#{currentVersion},"
+            + "#{status},#{source},#{offHours},#{boxCount},#{remark},#{operator},"
+            + "#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertSecrecyAccess(SecrecyAccess a);
+
+    @Insert("INSERT INTO t_secrecy_access_version (id, access_id, version_no, status, change_type, "
+            + "reviewer_code, reviewer_name, change_reason, operator, changed_at, "
+            + "create_by, create_time, update_by, update_time) VALUES "
+            + "(#{id},#{accessId},#{versionNo},#{status},#{changeType},#{reviewerCode},#{reviewerName},"
+            + "#{changeReason},#{operator},#{changedAt},"
+            + "#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertSecrecyAccessVersion(SecrecyAccessVersion v);
+
+    @Insert("INSERT INTO t_secrecy_access_supplement (id, access_id, content, reason, operator, "
+            + "supplemented_at, create_by, create_time, update_by, update_time) VALUES "
+            + "(#{id},#{accessId},#{content},#{reason},#{operator},#{supplementedAt},"
+            + "#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertSecrecySupplement(SecrecyAccessSupplement s);
+
+    @Insert("INSERT INTO t_secrecy_box (id, box_no, title, secret_level, status, keeper_code, remark, "
+            + "create_by, create_time, update_by, update_time) VALUES "
+            + "(#{id},#{boxNo},#{title},#{secretLevel},#{status},#{keeperCode},#{remark},"
+            + "#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertSecrecyBox(SecrecyBox b);
+
+    @Insert("INSERT INTO t_secrecy_box_move (id, box_id, box_no, access_id, access_no, direction, status, "
+            + "happened_at, operator, create_by, create_time, update_by, update_time) VALUES "
+            + "(#{id},#{boxId},#{boxNo},#{accessId},#{accessNo},#{direction},#{status},#{happenedAt},"
+            + "#{operator},#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertSecrecyBoxMove(SecrecyBoxMove m);
+
+    @Insert("INSERT INTO t_secrecy_time_rule (id, name, start_time, end_time, weekdays, status, remark, "
+            + "create_by, create_time, update_by, update_time) VALUES "
+            + "(#{id},#{name},#{startTime},#{endTime},#{weekdays},#{status},#{remark},"
+            + "#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertSecrecyTimeRule(SecrecyTimeRule r);
+
+    @Insert("INSERT INTO t_secrecy_alert (id, access_id, access_no, alert_type, person_code, person_name, "
+            + "happened_at, content, status, acked_by, acked_at, create_by, create_time, update_by, update_time) "
+            + "VALUES (#{id},#{accessId},#{accessNo},#{alertType},#{personCode},#{personName},#{happenedAt},"
+            + "#{content},#{status},#{ackedBy},#{ackedAt},"
+            + "#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertSecrecyAlert(SecrecyAlert a);
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_secrecy_person")
+    long maxSecrecyPersonId();
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_secrecy_access")
+    long maxSecrecyAccessId();
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_secrecy_access_version")
+    long maxSecrecyAccessVersionId();
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_secrecy_access_supplement")
+    long maxSecrecySupplementId();
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_secrecy_box")
+    long maxSecrecyBoxId();
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_secrecy_box_move")
+    long maxSecrecyBoxMoveId();
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_secrecy_time_rule")
+    long maxSecrecyTimeRuleId();
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_secrecy_alert")
+    long maxSecrecyAlertId();
+
+    @Update("ALTER TABLE t_secrecy_person ALTER COLUMN id RESTART WITH ${value}")
+    void restartSecrecyPerson(@Param("value") long value);
+
+    @Update("ALTER TABLE t_secrecy_access ALTER COLUMN id RESTART WITH ${value}")
+    void restartSecrecyAccess(@Param("value") long value);
+
+    @Update("ALTER TABLE t_secrecy_access_version ALTER COLUMN id RESTART WITH ${value}")
+    void restartSecrecyAccessVersion(@Param("value") long value);
+
+    @Update("ALTER TABLE t_secrecy_access_supplement ALTER COLUMN id RESTART WITH ${value}")
+    void restartSecrecySupplement(@Param("value") long value);
+
+    @Update("ALTER TABLE t_secrecy_box ALTER COLUMN id RESTART WITH ${value}")
+    void restartSecrecyBox(@Param("value") long value);
+
+    @Update("ALTER TABLE t_secrecy_box_move ALTER COLUMN id RESTART WITH ${value}")
+    void restartSecrecyBoxMove(@Param("value") long value);
+
+    @Update("ALTER TABLE t_secrecy_time_rule ALTER COLUMN id RESTART WITH ${value}")
+    void restartSecrecyTimeRule(@Param("value") long value);
+
+    @Update("ALTER TABLE t_secrecy_alert ALTER COLUMN id RESTART WITH ${value}")
+    void restartSecrecyAlert(@Param("value") long value);
 }

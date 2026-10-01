@@ -187,3 +187,43 @@
 - **要改走调整**：`POST /api/settlements/{id}/adjustments` `{invigilatorCode, adjustAmount(可正可负), reason}`，只追加 `t_settlement_adjustment`，本人明细与结算单应付额累加变动；`GET /api/settlements/{id}/adjustments` 查台账。未确认草稿不接受调整（直接重算即可）。
 
 > 新表 `t_invigilator / t_invigilator_allowance_rate / t_invigilation_shift / t_appointment / t_appointment_version / t_appointment_replacement / t_settlement / t_settlement_item / t_settlement_adjustment` 已纳入工作区快照与回退；schema 版本号 `appoint-1`。
+
+## 保密室双人复核链工作区（secrecy-1）
+
+把保密室纸本登记电子化并接上 evops-base：**进出刷证 → 第二人复核确认才算生效 → 在室清单实时可查 → 卷箱出入跟人员进出挂钩 → 异常时段自动标记给保卫**。登记写进去就不能改，纠错走补充说明；双人双锁由系统强制，不再靠自觉。出入登记分**模块（主表）/ 版本（只追加）/ 状态（当前版本）**三段。
+
+### 21. 准入人员与时段规则
+
+- `POST /api/secrecy/persons`、`GET /api/secrecy/persons?status=`：准入人员（编码、姓名、**证卡号**、角色 `KEEPER 保管员 / REVIEWER 复核员 / STAFF 普通涉密人员`）。
+- `POST /api/secrecy/time-rules`、`GET /api/secrecy/time-rules`：允许进出时段（`startTime`/`endTime` 起早于止；`weekdays` 适用星期 1-7 逗号分隔，空=每天）。刷证时间不在任何启用规则内即判**异常时段**；无启用规则时不判（未配口径不误报）。
+
+### 22. 出入登记模块 / 版本 / 状态（双人复核链）
+
+- `POST /api/secrecy/access/swipe`：刷证登记 `{"cardNo":"CARD001","direction":"IN","secondPersonCode":"P002","happenedAt":null,"boxNos":["BOX-001"],"remark":""}`（卡号或 `personCode` 二选一）。
+  登记初始 **PENDING_REVIEW 不生效**；第二人不能是登记人本人；同人有未复核同方向登记拒收（`DUPLICATE_PENDING`）；异常时段自动打 `offHours` 并生成异常标记给保卫。
+- `POST /api/secrecy/access/{id}/confirm`：`{"reviewerCode":"P002"}` —— **复核人必须是登记指定的第二人本人**，确认后 **CONFIRMED 生效**（在室清单、卷箱状态按生效口径联动）。
+- `POST /api/secrecy/access/{id}/reject`：`{"reviewerCode":"P002","reason":"..."}` —— REJECTED 终态，卷箱出入联动作废。
+- 状态机：PENDING_REVIEW → CONFIRMED / REJECTED（终态）；每次推进**追加一版** `t_secrecy_access_version`（REGISTER/CONFIRM/REJECT），主表只切当前版本号与状态。
+- `GET /api/secrecy/access`（按人/状态/方向/异常/日期区间过滤）、`GET .../{id}`（含版本链+补充说明+随带卷箱）、`GET .../{id}/versions`。
+- **登记落库不可改**：`POST /api/secrecy/access/{id}/supplements` 补充说明（只追加），`GET .../supplements` 查痕迹。
+
+### 23. 在室清单（实时可查）
+
+- `GET /api/secrecy/access/in-room`：按**已生效**进出实时推导（已生效 IN 且无更晚已生效 OUT 即在室），附待复核登记数（未生效不计入）。
+
+### 24. 卷箱出入（跟人员进出挂钩）
+
+- `POST /api/secrecy/boxes`、`GET /api/secrecy/boxes?status=`：卷箱建档（箱号、题名、密级、在室状态）。
+- 卷箱出入**不单独开接口**：刷证时 `boxNos` 随带，人出=带出（箱须在室）、人进=带回（箱须出室）；随登记复核联动生效/作废，箱状态由已生效记录维护。`GET /api/secrecy/boxes/{id}/moves` 查出入轨迹。
+
+### 25. 异常时段标记（给保卫）
+
+- 异常时段刷证自动生成 `OFF_HOURS` 标记（NEW）；`GET /api/secrecy/alerts?status=` 列表；`POST /api/secrecy/alerts/{id}/ack` 保卫签收（记签收人与钟点）。
+
+### 26. 纸面存量导入（三个月；两步）
+
+- `POST /api/secrecy/access/import/preview` → `POST /api/secrecy/access/import`：条目 `{personCode, direction, happenedAt, secondPersonCode, remark?}`。
+  结构性问题（人不存在/方向非法/时间缺失/第二人=本人）**整批拒收、不落半条**；同人同时间同方向重复**逐条跳过**。
+  纸面记录为既成事实：导入直接 **CONFIRMED**（`source=PAPER_IMPORT`，补 REGISTER+CONFIRM 两版），保留原始登记时间，打异常时段标记但不生成异常标记单（历史不追保卫）。
+
+> 新表 `t_secrecy_person / t_secrecy_access / t_secrecy_access_version / t_secrecy_access_supplement / t_secrecy_box / t_secrecy_box_move / t_secrecy_time_rule / t_secrecy_alert` 已纳入工作区快照与回退；schema 版本号 `secrecy-1`。

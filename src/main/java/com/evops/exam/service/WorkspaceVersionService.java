@@ -50,6 +50,22 @@ import com.evops.grade.mapper.GradeRuleVersionMapper;
 import com.evops.grade.mapper.ScoreChangeLogMapper;
 import com.evops.grade.mapper.ScoreNotificationMapper;
 import com.evops.grade.mapper.ScoreReviewMapper;
+import com.evops.secrecy.entity.SecrecyAccess;
+import com.evops.secrecy.entity.SecrecyAccessSupplement;
+import com.evops.secrecy.entity.SecrecyAccessVersion;
+import com.evops.secrecy.entity.SecrecyAlert;
+import com.evops.secrecy.entity.SecrecyBox;
+import com.evops.secrecy.entity.SecrecyBoxMove;
+import com.evops.secrecy.entity.SecrecyPerson;
+import com.evops.secrecy.entity.SecrecyTimeRule;
+import com.evops.secrecy.mapper.SecrecyAccessMapper;
+import com.evops.secrecy.mapper.SecrecyAccessSupplementMapper;
+import com.evops.secrecy.mapper.SecrecyAccessVersionMapper;
+import com.evops.secrecy.mapper.SecrecyAlertMapper;
+import com.evops.secrecy.mapper.SecrecyBoxMapper;
+import com.evops.secrecy.mapper.SecrecyBoxMoveMapper;
+import com.evops.secrecy.mapper.SecrecyPersonMapper;
+import com.evops.secrecy.mapper.SecrecyTimeRuleMapper;
 import com.evops.exam.mapper.AdmissionTicketMapper;
 import com.evops.exam.mapper.ExamBatchMapper;
 import com.evops.exam.mapper.ExamRoomMapper;
@@ -109,6 +125,14 @@ public class WorkspaceVersionService {
     private final SettlementMapper settlementMapper;
     private final SettlementItemMapper settlementItemMapper;
     private final SettlementAdjustmentMapper settlementAdjustmentMapper;
+    private final SecrecyPersonMapper secrecyPersonMapper;
+    private final SecrecyAccessMapper secrecyAccessMapper;
+    private final SecrecyAccessVersionMapper secrecyAccessVersionMapper;
+    private final SecrecyAccessSupplementMapper secrecySupplementMapper;
+    private final SecrecyBoxMapper secrecyBoxMapper;
+    private final SecrecyBoxMoveMapper secrecyBoxMoveMapper;
+    private final SecrecyTimeRuleMapper secrecyTimeRuleMapper;
+    private final SecrecyAlertMapper secrecyAlertMapper;
     private final ObjectMapper objectMapper;
     private final RestoreMapper restoreMapper;
 
@@ -140,6 +164,14 @@ public class WorkspaceVersionService {
                                    SettlementMapper settlementMapper,
                                    SettlementItemMapper settlementItemMapper,
                                    SettlementAdjustmentMapper settlementAdjustmentMapper,
+                                   SecrecyPersonMapper secrecyPersonMapper,
+                                   SecrecyAccessMapper secrecyAccessMapper,
+                                   SecrecyAccessVersionMapper secrecyAccessVersionMapper,
+                                   SecrecyAccessSupplementMapper secrecySupplementMapper,
+                                   SecrecyBoxMapper secrecyBoxMapper,
+                                   SecrecyBoxMoveMapper secrecyBoxMoveMapper,
+                                   SecrecyTimeRuleMapper secrecyTimeRuleMapper,
+                                   SecrecyAlertMapper secrecyAlertMapper,
                                    ObjectMapper objectMapper,
                                    RestoreMapper restoreMapper) {
         this.versionMapper = versionMapper;
@@ -170,6 +202,14 @@ public class WorkspaceVersionService {
         this.settlementMapper = settlementMapper;
         this.settlementItemMapper = settlementItemMapper;
         this.settlementAdjustmentMapper = settlementAdjustmentMapper;
+        this.secrecyPersonMapper = secrecyPersonMapper;
+        this.secrecyAccessMapper = secrecyAccessMapper;
+        this.secrecyAccessVersionMapper = secrecyAccessVersionMapper;
+        this.secrecySupplementMapper = secrecySupplementMapper;
+        this.secrecyBoxMapper = secrecyBoxMapper;
+        this.secrecyBoxMoveMapper = secrecyBoxMoveMapper;
+        this.secrecyTimeRuleMapper = secrecyTimeRuleMapper;
+        this.secrecyAlertMapper = secrecyAlertMapper;
         this.objectMapper = objectMapper;
         this.restoreMapper = restoreMapper;
     }
@@ -306,6 +346,14 @@ public class WorkspaceVersionService {
             data.put("settlements", settlementMapper.selectList(null));
             data.put("settlementItems", settlementItemMapper.selectList(null));
             data.put("settlementAdjustments", settlementAdjustmentMapper.selectList(null));
+            data.put("secrecyPersons", secrecyPersonMapper.selectList(null));
+            data.put("secrecyAccesses", secrecyAccessMapper.selectList(null));
+            data.put("secrecyAccessVersions", secrecyAccessVersionMapper.selectList(null));
+            data.put("secrecySupplements", secrecySupplementMapper.selectList(null));
+            data.put("secrecyBoxes", secrecyBoxMapper.selectList(null));
+            data.put("secrecyBoxMoves", secrecyBoxMoveMapper.selectList(null));
+            data.put("secrecyTimeRules", secrecyTimeRuleMapper.selectList(null));
+            data.put("secrecyAlerts", secrecyAlertMapper.selectList(null));
             return objectMapper.writeValueAsString(data);
         } catch (Exception e) {
             throw new BusinessException("SNAPSHOT_FAILED", "生成工作区快照失败：" + e.getMessage());
@@ -323,6 +371,14 @@ public class WorkspaceVersionService {
         // 先清空业务表（版本表本身不动），再按快照原样写回。
         // 用显式带主键的原生 INSERT：准考证、成绩等表的外键依赖原始 id，
         // H2 的 GENERATED BY DEFAULT 允许指定 id 插入。
+        restoreMapper.clearSecrecyAlerts();
+        restoreMapper.clearSecrecySupplements();
+        restoreMapper.clearSecrecyAccessVersions();
+        restoreMapper.clearSecrecyBoxMoves();
+        restoreMapper.clearSecrecyAccesses();
+        restoreMapper.clearSecrecyBoxes();
+        restoreMapper.clearSecrecyTimeRules();
+        restoreMapper.clearSecrecyPersons();
         restoreMapper.clearNotifications();
         restoreMapper.clearArrangementRuns();
         restoreMapper.clearSettlementAdjustments();
@@ -428,6 +484,30 @@ public class WorkspaceVersionService {
         for (SettlementAdjustment a : nullSafe(data.settlementAdjustments)) {
             restoreMapper.insertSettlementAdjustment(a);
         }
+        for (SecrecyPerson p : nullSafe(data.secrecyPersons)) {
+            restoreMapper.insertSecrecyPerson(p);
+        }
+        for (SecrecyTimeRule r : nullSafe(data.secrecyTimeRules)) {
+            restoreMapper.insertSecrecyTimeRule(r);
+        }
+        for (SecrecyBox b : nullSafe(data.secrecyBoxes)) {
+            restoreMapper.insertSecrecyBox(b);
+        }
+        for (SecrecyAccess a : nullSafe(data.secrecyAccesses)) {
+            restoreMapper.insertSecrecyAccess(a);
+        }
+        for (SecrecyAccessVersion v : nullSafe(data.secrecyAccessVersions)) {
+            restoreMapper.insertSecrecyAccessVersion(v);
+        }
+        for (SecrecyAccessSupplement s : nullSafe(data.secrecySupplements)) {
+            restoreMapper.insertSecrecySupplement(s);
+        }
+        for (SecrecyBoxMove m : nullSafe(data.secrecyBoxMoves)) {
+            restoreMapper.insertSecrecyBoxMove(m);
+        }
+        for (SecrecyAlert a : nullSafe(data.secrecyAlerts)) {
+            restoreMapper.insertSecrecyAlert(a);
+        }
 
         // 显式插 id 不推进 IDENTITY，统一把序列重置到 MAX(id)+1，避免回退后新增撞主键
         restoreMapper.restartSite(restoreMapper.maxSiteId() + 1);
@@ -456,6 +536,14 @@ public class WorkspaceVersionService {
         restoreMapper.restartSettlement(restoreMapper.maxSettlementId() + 1);
         restoreMapper.restartSettlementItem(restoreMapper.maxSettlementItemId() + 1);
         restoreMapper.restartSettlementAdjustment(restoreMapper.maxSettlementAdjustmentId() + 1);
+        restoreMapper.restartSecrecyPerson(restoreMapper.maxSecrecyPersonId() + 1);
+        restoreMapper.restartSecrecyAccess(restoreMapper.maxSecrecyAccessId() + 1);
+        restoreMapper.restartSecrecyAccessVersion(restoreMapper.maxSecrecyAccessVersionId() + 1);
+        restoreMapper.restartSecrecySupplement(restoreMapper.maxSecrecySupplementId() + 1);
+        restoreMapper.restartSecrecyBox(restoreMapper.maxSecrecyBoxId() + 1);
+        restoreMapper.restartSecrecyBoxMove(restoreMapper.maxSecrecyBoxMoveId() + 1);
+        restoreMapper.restartSecrecyTimeRule(restoreMapper.maxSecrecyTimeRuleId() + 1);
+        restoreMapper.restartSecrecyAlert(restoreMapper.maxSecrecyAlertId() + 1);
     }
 
     private <T> List<T> nullSafe(List<T> list) {
@@ -546,5 +634,13 @@ public class WorkspaceVersionService {
         public List<Settlement> settlements;
         public List<SettlementItem> settlementItems;
         public List<SettlementAdjustment> settlementAdjustments;
+        public List<SecrecyPerson> secrecyPersons;
+        public List<SecrecyAccess> secrecyAccesses;
+        public List<SecrecyAccessVersion> secrecyAccessVersions;
+        public List<SecrecyAccessSupplement> secrecySupplements;
+        public List<SecrecyBox> secrecyBoxes;
+        public List<SecrecyBoxMove> secrecyBoxMoves;
+        public List<SecrecyTimeRule> secrecyTimeRules;
+        public List<SecrecyAlert> secrecyAlerts;
     }
 }
