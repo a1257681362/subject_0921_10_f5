@@ -20,6 +20,14 @@ import com.evops.appoint.entity.SettlementAdjustment;
 import com.evops.appoint.entity.SettlementItem;
 import com.evops.mixalgo.entity.MixAlgorithm;
 import com.evops.mixalgo.entity.MixAlgorithmVersion;
+import com.evops.vault.entity.VaultAccess;
+import com.evops.vault.entity.VaultAccessNote;
+import com.evops.vault.entity.VaultAccessVersion;
+import com.evops.vault.entity.VaultAlert;
+import com.evops.vault.entity.VaultBox;
+import com.evops.vault.entity.VaultBoxMove;
+import com.evops.vault.entity.VaultConfig;
+import com.evops.vault.entity.VaultPerson;
 import com.evops.grade.entity.ExamScore;
 import com.evops.grade.entity.GradeRule;
 import com.evops.grade.entity.GradeRuleVersion;
@@ -462,4 +470,132 @@ public interface RestoreMapper {
 
     @Update("ALTER TABLE t_settlement_adjustment ALTER COLUMN id RESTART WITH ${value}")
     void restartSettlementAdjustment(@Param("value") long value);
+
+    // ============ vault-1：保密室双人复核登记链 ============
+    @Delete("DELETE FROM t_vault_alert")
+    void clearVaultAlerts();
+
+    @Delete("DELETE FROM t_vault_access_note")
+    void clearVaultAccessNotes();
+
+    @Delete("DELETE FROM t_vault_box_move")
+    void clearVaultBoxMoves();
+
+    @Delete("DELETE FROM t_vault_access_version")
+    void clearVaultAccessVersions();
+
+    @Delete("DELETE FROM t_vault_access")
+    void clearVaultAccesses();
+
+    @Delete("DELETE FROM t_vault_box")
+    void clearVaultBoxes();
+
+    @Delete("DELETE FROM t_vault_person")
+    void clearVaultPersons();
+
+    @Delete("DELETE FROM t_vault_config")
+    void clearVaultConfigs();
+
+    @Insert("INSERT INTO t_vault_person (id, code, name, card_no, duty, status, remark, "
+            + "create_by, create_time, update_by, update_time) VALUES "
+            + "(#{id},#{code},#{name},#{cardNo},#{duty},#{status},#{remark},"
+            + "#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertVaultPerson(VaultPerson p);
+
+    @Insert("INSERT INTO t_vault_box (id, box_no, name, status, remark, "
+            + "create_by, create_time, update_by, update_time) VALUES "
+            + "(#{id},#{boxNo},#{name},#{status},#{remark},"
+            + "#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertVaultBox(VaultBox b);
+
+    @Insert("INSERT INTO t_vault_config (id, config_key, config_value, remark, operator, "
+            + "create_by, create_time, update_by, update_time) VALUES "
+            + "(#{id},#{configKey},#{configValue},#{remark},#{operator},"
+            + "#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertVaultConfig(VaultConfig c);
+
+    @Insert("INSERT INTO t_vault_access (id, access_no, person_id, person_code, person_name, card_no, "
+            + "direction, occurred_at, source, status, current_version, abnormal, abnormal_reason, "
+            + "reviewer_code, reviewer_name, reviewed_at, review_comment, box_count, operator, remark, "
+            + "create_by, create_time, update_by, update_time) VALUES "
+            + "(#{id},#{accessNo},#{personId},#{personCode},#{personName},#{cardNo},"
+            + "#{direction},#{occurredAt},#{source},#{status},#{currentVersion},#{abnormal},#{abnormalReason},"
+            + "#{reviewerCode},#{reviewerName},#{reviewedAt},#{reviewComment},#{boxCount},#{operator},#{remark},"
+            + "#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertVaultAccess(VaultAccess a);
+
+    @Insert("INSERT INTO t_vault_access_version (id, access_id, version_no, status, change_type, "
+            + "change_reason, reviewer_code, reviewer_name, operator, changed_at, "
+            + "create_by, create_time, update_by, update_time) VALUES "
+            + "(#{id},#{accessId},#{versionNo},#{status},#{changeType},"
+            + "#{changeReason},#{reviewerCode},#{reviewerName},#{operator},#{changedAt},"
+            + "#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertVaultAccessVersion(VaultAccessVersion v);
+
+    @Insert("INSERT INTO t_vault_box_move (id, access_id, box_id, box_no, direction, occurred_at, "
+            + "create_by, create_time, update_by, update_time) VALUES "
+            + "(#{id},#{accessId},#{boxId},#{boxNo},#{direction},#{occurredAt},"
+            + "#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertVaultBoxMove(VaultBoxMove m);
+
+    @Insert("INSERT INTO t_vault_access_note (id, access_id, note_type, content, operator, noted_at, "
+            + "create_by, create_time, update_by, update_time) VALUES "
+            + "(#{id},#{accessId},#{noteType},#{content},#{operator},#{notedAt},"
+            + "#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertVaultAccessNote(VaultAccessNote n);
+
+    @Insert("INSERT INTO t_vault_alert (id, access_id, alert_type, title, content, status, "
+            + "acked_by, acked_at, ack_note, create_by, create_time, update_by, update_time) VALUES "
+            + "(#{id},#{accessId},#{alertType},#{title},#{content},#{status},"
+            + "#{ackedBy},#{ackedAt},#{ackNote},"
+            + "#{createBy},#{createTime},#{updateBy},#{updateTime})")
+    void insertVaultAlert(VaultAlert a);
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_vault_person")
+    long maxVaultPersonId();
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_vault_box")
+    long maxVaultBoxId();
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_vault_config")
+    long maxVaultConfigId();
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_vault_access")
+    long maxVaultAccessId();
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_vault_access_version")
+    long maxVaultAccessVersionId();
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_vault_box_move")
+    long maxVaultBoxMoveId();
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_vault_access_note")
+    long maxVaultAccessNoteId();
+
+    @Select("SELECT COALESCE(MAX(id),0) FROM t_vault_alert")
+    long maxVaultAlertId();
+
+    @Update("ALTER TABLE t_vault_person ALTER COLUMN id RESTART WITH ${value}")
+    void restartVaultPerson(@Param("value") long value);
+
+    @Update("ALTER TABLE t_vault_box ALTER COLUMN id RESTART WITH ${value}")
+    void restartVaultBox(@Param("value") long value);
+
+    @Update("ALTER TABLE t_vault_config ALTER COLUMN id RESTART WITH ${value}")
+    void restartVaultConfig(@Param("value") long value);
+
+    @Update("ALTER TABLE t_vault_access ALTER COLUMN id RESTART WITH ${value}")
+    void restartVaultAccess(@Param("value") long value);
+
+    @Update("ALTER TABLE t_vault_access_version ALTER COLUMN id RESTART WITH ${value}")
+    void restartVaultAccessVersion(@Param("value") long value);
+
+    @Update("ALTER TABLE t_vault_box_move ALTER COLUMN id RESTART WITH ${value}")
+    void restartVaultBoxMove(@Param("value") long value);
+
+    @Update("ALTER TABLE t_vault_access_note ALTER COLUMN id RESTART WITH ${value}")
+    void restartVaultAccessNote(@Param("value") long value);
+
+    @Update("ALTER TABLE t_vault_alert ALTER COLUMN id RESTART WITH ${value}")
+    void restartVaultAlert(@Param("value") long value);
 }

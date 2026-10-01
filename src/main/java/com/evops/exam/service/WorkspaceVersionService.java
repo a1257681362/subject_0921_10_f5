@@ -44,6 +44,22 @@ import com.evops.appoint.mapper.InvigilatorMapper;
 import com.evops.appoint.mapper.SettlementAdjustmentMapper;
 import com.evops.appoint.mapper.SettlementItemMapper;
 import com.evops.appoint.mapper.SettlementMapper;
+import com.evops.vault.entity.VaultAccess;
+import com.evops.vault.entity.VaultAccessNote;
+import com.evops.vault.entity.VaultAccessVersion;
+import com.evops.vault.entity.VaultAlert;
+import com.evops.vault.entity.VaultBox;
+import com.evops.vault.entity.VaultBoxMove;
+import com.evops.vault.entity.VaultConfig;
+import com.evops.vault.entity.VaultPerson;
+import com.evops.vault.mapper.VaultAccessMapper;
+import com.evops.vault.mapper.VaultAccessNoteMapper;
+import com.evops.vault.mapper.VaultAccessVersionMapper;
+import com.evops.vault.mapper.VaultAlertMapper;
+import com.evops.vault.mapper.VaultBoxMapper;
+import com.evops.vault.mapper.VaultBoxMoveMapper;
+import com.evops.vault.mapper.VaultConfigMapper;
+import com.evops.vault.mapper.VaultPersonMapper;
 import com.evops.grade.mapper.ExamScoreMapper;
 import com.evops.grade.mapper.GradeRuleMapper;
 import com.evops.grade.mapper.GradeRuleVersionMapper;
@@ -109,6 +125,14 @@ public class WorkspaceVersionService {
     private final SettlementMapper settlementMapper;
     private final SettlementItemMapper settlementItemMapper;
     private final SettlementAdjustmentMapper settlementAdjustmentMapper;
+    private final VaultPersonMapper vaultPersonMapper;
+    private final VaultBoxMapper vaultBoxMapper;
+    private final VaultAccessMapper vaultAccessMapper;
+    private final VaultAccessVersionMapper vaultAccessVersionMapper;
+    private final VaultBoxMoveMapper vaultBoxMoveMapper;
+    private final VaultAccessNoteMapper vaultAccessNoteMapper;
+    private final VaultAlertMapper vaultAlertMapper;
+    private final VaultConfigMapper vaultConfigMapper;
     private final ObjectMapper objectMapper;
     private final RestoreMapper restoreMapper;
 
@@ -140,6 +164,14 @@ public class WorkspaceVersionService {
                                    SettlementMapper settlementMapper,
                                    SettlementItemMapper settlementItemMapper,
                                    SettlementAdjustmentMapper settlementAdjustmentMapper,
+                                   VaultPersonMapper vaultPersonMapper,
+                                   VaultBoxMapper vaultBoxMapper,
+                                   VaultAccessMapper vaultAccessMapper,
+                                   VaultAccessVersionMapper vaultAccessVersionMapper,
+                                   VaultBoxMoveMapper vaultBoxMoveMapper,
+                                   VaultAccessNoteMapper vaultAccessNoteMapper,
+                                   VaultAlertMapper vaultAlertMapper,
+                                   VaultConfigMapper vaultConfigMapper,
                                    ObjectMapper objectMapper,
                                    RestoreMapper restoreMapper) {
         this.versionMapper = versionMapper;
@@ -170,6 +202,14 @@ public class WorkspaceVersionService {
         this.settlementMapper = settlementMapper;
         this.settlementItemMapper = settlementItemMapper;
         this.settlementAdjustmentMapper = settlementAdjustmentMapper;
+        this.vaultPersonMapper = vaultPersonMapper;
+        this.vaultBoxMapper = vaultBoxMapper;
+        this.vaultAccessMapper = vaultAccessMapper;
+        this.vaultAccessVersionMapper = vaultAccessVersionMapper;
+        this.vaultBoxMoveMapper = vaultBoxMoveMapper;
+        this.vaultAccessNoteMapper = vaultAccessNoteMapper;
+        this.vaultAlertMapper = vaultAlertMapper;
+        this.vaultConfigMapper = vaultConfigMapper;
         this.objectMapper = objectMapper;
         this.restoreMapper = restoreMapper;
     }
@@ -306,6 +346,14 @@ public class WorkspaceVersionService {
             data.put("settlements", settlementMapper.selectList(null));
             data.put("settlementItems", settlementItemMapper.selectList(null));
             data.put("settlementAdjustments", settlementAdjustmentMapper.selectList(null));
+            data.put("vaultPersons", vaultPersonMapper.selectList(null));
+            data.put("vaultBoxes", vaultBoxMapper.selectList(null));
+            data.put("vaultAccesses", vaultAccessMapper.selectList(null));
+            data.put("vaultAccessVersions", vaultAccessVersionMapper.selectList(null));
+            data.put("vaultBoxMoves", vaultBoxMoveMapper.selectList(null));
+            data.put("vaultAccessNotes", vaultAccessNoteMapper.selectList(null));
+            data.put("vaultAlerts", vaultAlertMapper.selectList(null));
+            data.put("vaultConfigs", vaultConfigMapper.selectList(null));
             return objectMapper.writeValueAsString(data);
         } catch (Exception e) {
             throw new BusinessException("SNAPSHOT_FAILED", "生成工作区快照失败：" + e.getMessage());
@@ -323,6 +371,14 @@ public class WorkspaceVersionService {
         // 先清空业务表（版本表本身不动），再按快照原样写回。
         // 用显式带主键的原生 INSERT：准考证、成绩等表的外键依赖原始 id，
         // H2 的 GENERATED BY DEFAULT 允许指定 id 插入。
+        restoreMapper.clearVaultAlerts();
+        restoreMapper.clearVaultAccessNotes();
+        restoreMapper.clearVaultBoxMoves();
+        restoreMapper.clearVaultAccessVersions();
+        restoreMapper.clearVaultAccesses();
+        restoreMapper.clearVaultBoxes();
+        restoreMapper.clearVaultPersons();
+        restoreMapper.clearVaultConfigs();
         restoreMapper.clearNotifications();
         restoreMapper.clearArrangementRuns();
         restoreMapper.clearSettlementAdjustments();
@@ -428,6 +484,30 @@ public class WorkspaceVersionService {
         for (SettlementAdjustment a : nullSafe(data.settlementAdjustments)) {
             restoreMapper.insertSettlementAdjustment(a);
         }
+        for (VaultPerson p : nullSafe(data.vaultPersons)) {
+            restoreMapper.insertVaultPerson(p);
+        }
+        for (VaultBox b : nullSafe(data.vaultBoxes)) {
+            restoreMapper.insertVaultBox(b);
+        }
+        for (VaultConfig c : nullSafe(data.vaultConfigs)) {
+            restoreMapper.insertVaultConfig(c);
+        }
+        for (VaultAccess a : nullSafe(data.vaultAccesses)) {
+            restoreMapper.insertVaultAccess(a);
+        }
+        for (VaultAccessVersion v : nullSafe(data.vaultAccessVersions)) {
+            restoreMapper.insertVaultAccessVersion(v);
+        }
+        for (VaultBoxMove m : nullSafe(data.vaultBoxMoves)) {
+            restoreMapper.insertVaultBoxMove(m);
+        }
+        for (VaultAccessNote n : nullSafe(data.vaultAccessNotes)) {
+            restoreMapper.insertVaultAccessNote(n);
+        }
+        for (VaultAlert a : nullSafe(data.vaultAlerts)) {
+            restoreMapper.insertVaultAlert(a);
+        }
 
         // 显式插 id 不推进 IDENTITY，统一把序列重置到 MAX(id)+1，避免回退后新增撞主键
         restoreMapper.restartSite(restoreMapper.maxSiteId() + 1);
@@ -456,6 +536,14 @@ public class WorkspaceVersionService {
         restoreMapper.restartSettlement(restoreMapper.maxSettlementId() + 1);
         restoreMapper.restartSettlementItem(restoreMapper.maxSettlementItemId() + 1);
         restoreMapper.restartSettlementAdjustment(restoreMapper.maxSettlementAdjustmentId() + 1);
+        restoreMapper.restartVaultPerson(restoreMapper.maxVaultPersonId() + 1);
+        restoreMapper.restartVaultBox(restoreMapper.maxVaultBoxId() + 1);
+        restoreMapper.restartVaultConfig(restoreMapper.maxVaultConfigId() + 1);
+        restoreMapper.restartVaultAccess(restoreMapper.maxVaultAccessId() + 1);
+        restoreMapper.restartVaultAccessVersion(restoreMapper.maxVaultAccessVersionId() + 1);
+        restoreMapper.restartVaultBoxMove(restoreMapper.maxVaultBoxMoveId() + 1);
+        restoreMapper.restartVaultAccessNote(restoreMapper.maxVaultAccessNoteId() + 1);
+        restoreMapper.restartVaultAlert(restoreMapper.maxVaultAlertId() + 1);
     }
 
     private <T> List<T> nullSafe(List<T> list) {
@@ -546,5 +634,13 @@ public class WorkspaceVersionService {
         public List<Settlement> settlements;
         public List<SettlementItem> settlementItems;
         public List<SettlementAdjustment> settlementAdjustments;
+        public List<VaultPerson> vaultPersons;
+        public List<VaultBox> vaultBoxes;
+        public List<VaultConfig> vaultConfigs;
+        public List<VaultAccess> vaultAccesses;
+        public List<VaultAccessVersion> vaultAccessVersions;
+        public List<VaultBoxMove> vaultBoxMoves;
+        public List<VaultAccessNote> vaultAccessNotes;
+        public List<VaultAlert> vaultAlerts;
     }
 }

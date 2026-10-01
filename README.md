@@ -187,3 +187,47 @@
 - **要改走调整**：`POST /api/settlements/{id}/adjustments` `{invigilatorCode, adjustAmount(可正可负), reason}`，只追加 `t_settlement_adjustment`，本人明细与结算单应付额累加变动；`GET /api/settlements/{id}/adjustments` 查台账。未确认草稿不接受调整（直接重算即可）。
 
 > 新表 `t_invigilator / t_invigilator_allowance_rate / t_invigilation_shift / t_appointment / t_appointment_version / t_appointment_replacement / t_settlement / t_settlement_item / t_settlement_adjustment` 已纳入工作区快照与回退；schema 版本号 `appoint-1`。
+
+## 保密室双人复核登记链工作区（vault-1）
+
+把"双人双锁"从自觉变成系统约束：**进出刷证 → 第二人复核确认才算生效 → 在室清单实时可查 → 卷箱出入跟人员进出挂钩 → 异常时段自动标记给保卫**。登记写进去就不能改，纠错一律走补充说明（只追加）；三个月纸面存量两步导入。出入登记分**模块（主表）/ 版本（只追加）/ 状态（当前版本）**三段，与聘任记录同一套版本模式。
+
+### 21. 准入人员 / 卷箱 / 允许进出时段
+
+- `POST /api/vault/persons`、`GET /api/vault/persons?status=`：准入人员（编码、姓名、**刷证卡号**、职务）；`POST /api/vault/persons/{id}/disable|enable`：停用后不能登记也不能当复核人，历史登记保留。
+- `POST /api/vault/boxes`、`GET /api/vault/boxes`：卷箱建档（箱号唯一），箱号先建档再登记出入。
+- `GET /api/vault/access-window`、`POST /api/vault/access-window`：允许进出时段（`{"start":"07:00","end":"19:00"}`，起止成对、起早于止；缺省 07:00–19:00）。落在窗口外的登记自动标记 `abnormal=true`。
+
+### 22. 出入登记模块（刷证 → 待复核 → 第二人确认生效）
+
+- `POST /api/vault/access/swipe`：刷证登记 `{"cardNo":"CARD-001"（或 personCode）,"direction":"IN|OUT","occurredAt":"可空缺省当前","boxes":["BX-001"],"remark":""}`，落库 **PENDING 待复核**，不生效、不计入在室清单；同人同向同钟点防重（`ACCESS_DUPLICATE`），未来时间拒收。
+- `POST /api/vault/access/{id}/review`：`{"reviewerCode":"K002","approved":true,"comment":""}` 第二人复核——复核人须为**登记者本人以外**的在册启用人员（`REVIEWER_SAME_AS_PERSON`），确认才 **CONFIRMED 生效**；`approved=false` 驳回必须写意见，**REJECTED 永不生效**；已复核的登记不能再复核。
+- 状态机：**PENDING 待复核 → CONFIRMED 已生效 / REJECTED 已驳回**；每次流转追加一版 `t_vault_access_version`（CREATE/CONFIRM/REJECT/IMPORT），主表只切当前版本号与状态。
+- `GET /api/vault/access?status=&direction=&personCode=&from=&to=`、`GET /api/vault/access/{id}`、`GET /api/vault/access/{id}/versions`（版本链）、`GET /api/vault/access/{id}/boxes`（挂钩卷箱明细）。
+
+### 23. 在室清单（实时可查）
+
+- `GET /api/vault/access/in-room`：在室人员——只按**已生效**登记推导，每人最后一条生效方向为 IN 即在室，带进室时间与登记号。
+- `GET /api/vault/boxes/in-room`：在室卷箱——按已生效登记挂钩的卷箱明细推导，带经手人（谁带进来的）。
+
+### 24. 卷箱出入跟人员进出挂钩
+
+- 卷箱不能单独登记出入，必须挂在一条人员出入登记上（`boxes:[...]`），方向与人一致，随登记复核生效。
+- 位置校验按已生效台账：带进要求箱当前不在室（`BOX_ALREADY_IN_ROOM`），带出要求箱当前在室（`BOX_NOT_IN_ROOM`）；刷证时校一次，**确认生效前再校一次**（等待期间台账可能已变）。
+
+### 25. 异常时段自动标记给保卫
+
+- 发生时间落在允许窗口外的登记自动 `abnormal=true`；**生效时**（复核确认或导入生效）自动生成 `OFF_HOURS` 告警给保卫，未生效前不产生告警。
+- `GET /api/vault/alerts?status=NEW|ACKED`：保卫查看；`POST /api/vault/alerts/{id}/ack?note=`：签收留痕（签收人取 `X-Operator`），重复签收拒收。
+
+### 26. 登记不可改，纠错走补充说明
+
+- 登记内容（人/方向/钟点/卷箱）写入后不改，没有更新/删除接口；纠错一律 `POST /api/vault/access/{id}/notes` `{"noteType":"CORRECTION|SUPPLEMENT","content":"..."}`，只追加、不覆盖历史；`GET /api/vault/access/{id}/notes` 查痕迹。
+
+### 27. 三个月纸面存量导入（两步）
+
+- `POST /api/vault/access/import/preview` → `POST /api/vault/access/import`：条目 `{personCode, direction, occurredAt:"yyyy-MM-dd HH:mm", boxes?, remark?}`。
+- 预检逐条列可导入/跳过；人员或卷箱未建档、方向/时间非法、未来时间、文件内重复等结构性问题**整批拒收、不落半条**；与库内同键（人+方向+钟点）的逐条幂等跳过，重复导入安全。
+- 历史既成事实：落库即 **CONFIRMED**（版本 IMPORT，单版生效），卷箱位置按纸面原样记录；异常时段同样自动标记并告警保卫。
+
+> 新表 `t_vault_person / t_vault_box / t_vault_access / t_vault_access_version / t_vault_box_move / t_vault_access_note / t_vault_alert / t_vault_config` 已纳入工作区快照与回退；schema 版本号 `vault-1`。
